@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("graphql-server")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1b120d7f6b29ca2f70ae407da636501de874fbc1")]
 [assembly: System.Reflection.AssemblyProductAttribute("graphql-server")]
 [assembly: System.Reflection.AssemblyTitleAttribute("graphql-server")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -52,3 +52,4 @@
 /home/tombates/Projects/graphql-server/bin/Debug/net8.0/System.IO.Hashing.dll
 /home/tombates/Projects/graphql-server/bin/Debug/net8.0/Yarp.ReverseProxy.dll
 /home/tombates/Projects/graphql-server/obj/Debug/net8.0/graphql-.4FDAFD07.Up2Date
+/home/tombates/Projects/graphql-server/obj/Debug/net8.0/graphql-server.sourcelink.json
