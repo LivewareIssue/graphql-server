@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/graphql-server.props" />
+</Project>

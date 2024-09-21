@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "QbooqmgUsVmYXbxYS4+RN6qnS5JbtbUY5GtfAZicgls=",
+  "Source": "graphql-server",
+  "BasePath": "_content/graphql-server",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
