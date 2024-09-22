@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using System.Text.Json;
+using HotChocolate.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Server.Entities;
 using Server.Services;
@@ -8,9 +8,18 @@ namespace Server.GraphQL;
 
 public class Query
 {
-    public Task<Person> Person(string id, ClaimsPrincipal claimsPrincipal, [Service] UserManager<EntPerson> userManager, [Service] ILogger<Person> logger, [Service] IEntPersonService personService)
+    public Task<Person> Person(string id, [Service] IEntPersonService personService)
+        => GraphQL.Person.GetAsync(id, personService);
+
+    public async Task<Person?> Viewer([Service] UserManager<EntPerson> userManager, ClaimsPrincipal user)
     {
-        logger.LogInformation("Viewer name: {name}", claimsPrincipal?.Identity?.Name);
-        return GraphQL.Person.GetAsync(id, personService);
+        var userId = user.Identity?.Name;
+        if (userId is null)
+        {
+            return null;
+        }
+
+        var userEnt = await userManager.FindByIdAsync(userId);
+        return userEnt is null ? null : GraphQL.Person.FromEntPerson(userEnt);
     }
 }

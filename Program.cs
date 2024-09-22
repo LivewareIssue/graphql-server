@@ -86,7 +86,8 @@ builder.Services
                 var tokenHandler = new JwtSecurityTokenHandler();
                 var claimsPrincipal = tokenHandler.ValidateToken(token, new TokenValidationParameters
                 {
-
+                    ValidIssuer = "issuer",
+                    ValidAudience = "audience",
                     IssuerSigningKey = jwtPrivateKey
                 }, out _);
 
@@ -115,15 +116,14 @@ await dbContext.Database.MigrateAsync();
 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<EntPerson>>();
 var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-// Create Admin role if it doesn't exist
 if (!await roleManager.RoleExistsAsync("Admin"))
 {
     var adminRole = new IdentityRole("Admin");
     await roleManager.CreateAsync(adminRole);
 }
 
-// Create a test user if it doesn't exist
 var testUser = await userManager.FindByEmailAsync("testuser@example.com");
+
 if (testUser == null)
 {
     testUser = new EntPerson
@@ -135,17 +135,20 @@ if (testUser == null)
     await userManager.CreateAsync(testUser, "Password123!");
 }
 
-// Add the test user to Admin role if not already in it
 if (!await userManager.IsInRoleAsync(testUser, "Admin"))
 {
     await userManager.AddToRoleAsync(testUser, "Admin");
 }
 
 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+logger.LogInformation("Test user id: '{id}'", testUser.Id);
 
 var claims = new[]
 {
+    new Claim(JwtRegisteredClaimNames.Sub, testUser.Id!),
     new Claim(JwtRegisteredClaimNames.UniqueName, testUser.Id!),
+    new Claim(JwtRegisteredClaimNames.Email, testUser.Email!),
+    new Claim(JwtRegisteredClaimNames.NameId, testUser.UserName!),
     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
 };
 
