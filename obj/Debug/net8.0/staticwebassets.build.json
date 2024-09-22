@@ -1,8 +1,8 @@
 {
   "Version": 1,
-  "Hash": "QbooqmgUsVmYXbxYS4+RN6qnS5JbtbUY5GtfAZicgls=",
-  "Source": "graphql-server",
-  "BasePath": "_content/graphql-server",
+  "Hash": "z8/jf/uVtfFHkS7UZKSCL97FvnwEOhJPQdCo8dr/ZzU=",
+  "Source": "Server",
+  "BasePath": "_content/Server",
   "Mode": "Default",
   "ManifestType": "Build",
   "ReferencedProjectsConfiguration": [],
