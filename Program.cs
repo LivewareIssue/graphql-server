@@ -143,14 +143,23 @@ if (!await userManager.IsInRoleAsync(testUser, "Admin"))
 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 logger.LogInformation("Test user id: '{id}'", testUser.Id);
 
-var claims = new[]
+var claims = new List<Claim>
 {
-    new Claim(JwtRegisteredClaimNames.Sub, testUser.Id!),
-    new Claim(JwtRegisteredClaimNames.UniqueName, testUser.Id!),
-    new Claim(JwtRegisteredClaimNames.Email, testUser.Email!),
-    new Claim(JwtRegisteredClaimNames.NameId, testUser.UserName!),
-    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+    new(JwtRegisteredClaimNames.Sub, testUser.Id!),
+    new(JwtRegisteredClaimNames.UniqueName, testUser.Id!),
+    new(JwtRegisteredClaimNames.Email, testUser.Email!),
+    new(JwtRegisteredClaimNames.NameId, testUser.UserName!),
+    new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
 };
+
+var userClaims = await userManager.GetClaimsAsync(testUser);
+var userRoles = await userManager.GetRolesAsync(testUser);
+
+claims.AddRange(userClaims);
+foreach (var role in userRoles)
+{
+    claims.Add(new Claim(ClaimTypes.Role, role));
+}
 
 var tokenHandler = new JwtSecurityTokenHandler();
 

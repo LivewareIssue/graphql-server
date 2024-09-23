@@ -10,7 +10,7 @@ public class Person
 
     public string? UserName { get; set; }
 
-    [Authorize]
+    [Authorize(Roles = ["Admin"])]
     public string? Email { get; set; }
 
     public static Person FromEntPerson(EntPerson entPerson)
