@@ -9,7 +9,6 @@ using Microsoft.IdentityModel.Tokens;
 using Server.Data;
 using Server.Entities;
 using Server.GraphQL;
-using Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -26,7 +25,11 @@ builder.Configuration.AddJsonFile("appsettings.json",
     reloadOnChange: false);
 
 services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters =
@@ -45,9 +48,12 @@ services
         {
             options.AddPolicy("DefaultPolicy", builder =>
             {
-                builder.AllowAnyHeader()
-                    .WithMethods("GET", "POST")
-                    .WithOrigins("http://localhost:8080");
+                builder
+                    .AllowAnyHeader()
+                    .AllowAnyOrigin()
+                    .AllowAnyMethod();
+                    // .WithMethods("GET", "POST")
+                    // .WithOrigins("http://localhost:8080");
             });
         }
     );
@@ -61,42 +67,32 @@ services.AddDbContextFactory<ApplicationDbContext>(options
     => options.UseSqlServer(connectionStringBuilder.ConnectionString));
 
 services
-    .AddTransient<IEntPersonService, EntPersonService>();
-
-services
-    .AddIdentity<EntPerson, IdentityRole>(options =>
+    .AddIdentityCore<EntUser>(options =>
     {
         options.Password.RequiredLength = 8;
     })
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
+services.AddHttpLogging(options =>
+{
+    options.RequestHeaders.Add("Authorization");
+});
+
 builder.Services
     .AddGraphQLServer()
-    .AddAuthorization()
-    .AddQueryType<Query>()
-    .AddHttpRequestInterceptor((context, executor, builder, ct) =>
+    .AddAuthorization(options =>
     {
-        var authorization = context.Request.Headers.Authorization.ToString();
-        if (authorization.StartsWith("Bearer "))
+        options.AddPolicy("AdminOrCanViewOwnData", policy =>
         {
-            var token = authorization["Bearer ".Length..];
-            if (!string.IsNullOrWhiteSpace(token))
+            policy.RequireAssertion(context =>
             {
-                var tokenHandler = new JwtSecurityTokenHandler();
-                var claimsPrincipal = tokenHandler.ValidateToken(token, new TokenValidationParameters
-                {
-                    ValidIssuer = "issuer",
-                    ValidAudience = "audience",
-                    IssuerSigningKey = jwtPrivateKey
-                }, out _);
-
-                context.User = claimsPrincipal;
-            }
-        }
-
-        return ValueTask.CompletedTask;
-    });
+                return true;
+            });
+        });
+    })
+    .AddQueryType<Query>();
 
 var app = builder.Build();
 
@@ -113,7 +109,7 @@ using var dbContext = dbContextFactory.CreateDbContext();
 
 await dbContext.Database.MigrateAsync();
 
-var userManager = scope.ServiceProvider.GetRequiredService<UserManager<EntPerson>>();
+var userManager = scope.ServiceProvider.GetRequiredService<UserManager<EntUser>>();
 var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
 if (!await roleManager.RoleExistsAsync("Admin"))
@@ -126,7 +122,7 @@ var testUser = await userManager.FindByEmailAsync("testuser@example.com");
 
 if (testUser == null)
 {
-    testUser = new EntPerson
+    testUser = new EntUser
     {
         UserName = "testuser",
         Email = "testuser@example.com",

@@ -1,25 +1,39 @@
 using System.Security.Claims;
-using HotChocolate.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Server.Entities;
-using Server.Services;
 
 namespace Server.GraphQL;
 
 public class Query
 {
-    public Task<Person> Person(string id, [Service] IEntPersonService personService)
-        => GraphQL.Person.GetAsync(id, personService);
-
-    public async Task<Person?> Viewer([Service] UserManager<EntPerson> userManager, ClaimsPrincipal user)
+    public async ValueTask<User> User(string id, [Service(ServiceKind.Synchronized)] UserManager<EntUser> userManager)
     {
-        var userId = user.Identity?.Name;
-        if (userId is null)
+        var user = await userManager.FindByIdAsync(id)
+            ?? throw new Exception("Failed to find user.");
+
+        return new User
+        {
+            Id = user.Id,
+            UserName = user.UserName,
+            Email = user.Email,
+            Roles = await userManager.GetRolesAsync(user)
+        };
+    }
+
+    public async Task<User?> Viewer([Service(ServiceKind.Synchronized)] UserManager<EntUser> userManager, ClaimsPrincipal claimsPrincipal)
+    {
+        var user = await userManager.GetUserAsync(claimsPrincipal);
+        if (user == null)
         {
             return null;
         }
 
-        var userEnt = await userManager.FindByIdAsync(userId);
-        return userEnt is null ? null : GraphQL.Person.FromEntPerson(userEnt);
+        return new User
+        {
+            Id = user.Id,
+            UserName = user.UserName,
+            Email = user.Email,
+            Roles = await userManager.GetRolesAsync(user)
+        };
     }
 }
