@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using Server.Data;
 using Server.Entities;
 using Server.GraphQL;
+using Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -50,10 +51,8 @@ services
             {
                 builder
                     .AllowAnyHeader()
-                    .AllowAnyOrigin()
-                    .AllowAnyMethod();
-                    // .WithMethods("GET", "POST")
-                    // .WithOrigins("http://localhost:8080");
+                    .WithMethods("GET", "POST")
+                    .WithOrigins("http://localhost:8080");
             });
         }
     );
@@ -63,8 +62,11 @@ var connectionStringBuilder = new SqlConnectionStringBuilder(builder.Configurati
     Password = builder.Configuration["DatabasePassword"]
 };
 
-services.AddDbContextFactory<ApplicationDbContext>(options
-    => options.UseSqlServer(connectionStringBuilder.ConnectionString));
+services.AddPooledDbContextFactory<ApplicationDbContext>(
+    options => options.UseSqlServer(connectionStringBuilder.ConnectionString));
+    
+services.AddScoped(serviceProvider
+    => serviceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContext());
 
 services
     .AddIdentityCore<EntUser>(options =>
@@ -94,6 +96,8 @@ builder.Services
     })
     .AddQueryType<Query>();
 
+builder.Services.AddScoped<AuthenticationService>();
+
 var app = builder.Build();
 
 app.UseHttpsRedirection();
@@ -104,68 +108,18 @@ app.UseAuthorization();
 app.MapGraphQL();
 
 using var scope = app.Services.CreateScope();
-var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
-using var dbContext = dbContextFactory.CreateDbContext();
 
+using var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 await dbContext.Database.MigrateAsync();
 
+var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+var authenticationService = scope.ServiceProvider.GetRequiredService<AuthenticationService>();
 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<EntUser>>();
-var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-
-if (!await roleManager.RoleExistsAsync("Admin"))
-{
-    var adminRole = new IdentityRole("Admin");
-    await roleManager.CreateAsync(adminRole);
-}
 
 var testUser = await userManager.FindByEmailAsync("testuser@example.com");
-
-if (testUser == null)
+if (testUser is not null)
 {
-    testUser = new EntUser
-    {
-        UserName = "testuser",
-        Email = "testuser@example.com",
-        EmailConfirmed = true
-    };
-    await userManager.CreateAsync(testUser, "Password123!");
+    logger.LogInformation("Token: {token}", await authenticationService.GetTokenAsync(testUser));
 }
-
-if (!await userManager.IsInRoleAsync(testUser, "Admin"))
-{
-    await userManager.AddToRoleAsync(testUser, "Admin");
-}
-
-var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("Test user id: '{id}'", testUser.Id);
-
-var claims = new List<Claim>
-{
-    new(JwtRegisteredClaimNames.Sub, testUser.Id!),
-    new(JwtRegisteredClaimNames.UniqueName, testUser.Id!),
-    new(JwtRegisteredClaimNames.Email, testUser.Email!),
-    new(JwtRegisteredClaimNames.NameId, testUser.UserName!),
-    new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-};
-
-var userClaims = await userManager.GetClaimsAsync(testUser);
-var userRoles = await userManager.GetRolesAsync(testUser);
-
-claims.AddRange(userClaims);
-foreach (var role in userRoles)
-{
-    claims.Add(new Claim(ClaimTypes.Role, role));
-}
-
-var tokenHandler = new JwtSecurityTokenHandler();
-
-var token = new JwtSecurityToken(
-    issuer: "issuer",
-    audience: "audience",
-    claims: claims,
-    expires: DateTime.UtcNow.AddHours(1),
-    signingCredentials: signingCredentials);
-
-logger.LogInformation("Token: '{token}'", tokenHandler.WriteToken(token));
 
 await app.RunAsync();

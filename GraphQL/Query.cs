@@ -6,8 +6,9 @@ namespace Server.GraphQL;
 
 public class Query
 {
-    public async ValueTask<User> User(string id, [Service(ServiceKind.Synchronized)] UserManager<EntUser> userManager)
+    public async ValueTask<User> User(string id, UserManager<EntUser> userManager)
     {
+        
         var user = await userManager.FindByIdAsync(id)
             ?? throw new Exception("Failed to find user.");
 
@@ -20,7 +21,7 @@ public class Query
         };
     }
 
-    public async Task<User?> Viewer([Service(ServiceKind.Synchronized)] UserManager<EntUser> userManager, ClaimsPrincipal claimsPrincipal)
+    public async Task<User?> Viewer(UserManager<EntUser> userManager, ClaimsPrincipal claimsPrincipal)
     {
         var user = await userManager.GetUserAsync(claimsPrincipal);
         if (user == null)
