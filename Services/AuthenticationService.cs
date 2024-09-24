@@ -15,7 +15,7 @@ public class JwtOptions
     required public string PrivateKey { get; set; }
 }
 
-public class AuthenticationService(ILogger<AuthenticationService> logger, IOptions<JwtOptions> jwtOptions, UserManager<EntUser> userManager)
+public class AuthenticationService(IOptions<JwtOptions> jwtOptions, UserManager<EntUser> userManager)
 {
     public async IAsyncEnumerable<Claim> GetClaims(EntUser user)
         { 
