@@ -7,13 +7,17 @@ namespace Server.GraphQL;
 [Node]
 public class User
 {
+    [GraphQLDescription("The user's unique identifier.")]
     required public string Id { get; set; }
 
+    [GraphQLDescription("The user's non-unique display name.")]
     public string? UserName { get; set; }
 
     [Authorize]
+    [GraphQLDescription("The user's current email address.")]
     public string? Email { get; set; }
 
+    [GraphQLDescription("The roles that the user is a member of.")]
     public IEnumerable<string> Roles { get; set; } = [];
 
     public static async Task<User> FromEntUserAsync(EntUser user, UserManager<EntUser> userManager)

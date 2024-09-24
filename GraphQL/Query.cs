@@ -8,11 +8,19 @@ namespace Server.GraphQL;
 public class Query
 {
     [Authorize(Roles = ["Admin"])]
-    public async ValueTask<User> User([ID] string id, UserManager<EntUser> userManager)
+    [GraphQLDescription("Find a user by their ID.")]
+    public async ValueTask<User> User(
+        [GraphQLDescription("The user's ID.")]
+        [ID]
+        string id,
+        UserManager<EntUser> userManager)
         => await GraphQL.User.GetAsync(id, userManager);
 
     [AllowAnonymous]
-    public async Task<User?> Viewer(UserManager<EntUser> userManager, ClaimsPrincipal claimsPrincipal)
+    [GraphQLDescription("The currently authenticated user.")]
+    public async Task<User?> Viewer(
+        [Service] UserManager<EntUser> userManager,
+        [Service] ClaimsPrincipal claimsPrincipal)
     {
         var user = await userManager.GetUserAsync(claimsPrincipal);
         if (user == null)
@@ -20,12 +28,6 @@ public class Query
             return null;
         }
 
-        return new User
-        {
-            Id = user.Id,
-            UserName = user.UserName,
-            Email = user.Email,
-            Roles = await userManager.GetRolesAsync(user)
-        };
+        return await GraphQL.User.FromEntUserAsync(user, userManager);
     }
 }
