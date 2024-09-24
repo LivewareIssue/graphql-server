@@ -26,22 +26,80 @@ app
 
 app.MapGraphQL();
 
-await LogTestUserToken();
 await ApplyMigrations();
+await SeedDatabase();
+await LogTestUserToken("testuser@example.com");
+await LogTestUserToken("admin@example.com");
 await app.RunAsync();
 
-async Task LogTestUserToken()
+async Task SeedDatabase()
 {
     using var scope = app.Services.CreateScope();
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<EntUser>>();
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
     var testUser = await userManager.FindByEmailAsync("testuser@example.com");
+    if (testUser is null)
+    {
+        testUser = new EntUser
+        {
+            UserName = "TestUser",
+            Email = "testuser@example.com"
+        };
+
+        var result = await userManager.CreateAsync(testUser, "Password123!");
+    }
+
+    var testAdmin = await userManager.FindByEmailAsync("admin@example.com");
+    if (testAdmin is null)
+    {
+        testAdmin = new EntUser
+        {
+            UserName = "Admin",
+            Email = "admin@example.com"
+        };
+
+        await userManager.CreateAsync(testAdmin, "Password123!");
+    }
+
+    var userRole = await roleManager.FindByNameAsync("User");
+    if (userRole is null)
+    {
+        userRole = new IdentityRole("User");
+        await roleManager.CreateAsync(userRole);
+    }
+
+    var adminRole = await roleManager.FindByNameAsync("Admin");
+    if (adminRole is null)
+    {
+        adminRole = new IdentityRole("Admin");
+        await roleManager.CreateAsync(adminRole);
+    }
+
+    if (!await userManager.IsInRoleAsync(testUser, "User"))
+    {
+        await userManager.AddToRoleAsync(testUser, "User");
+    }
+
+    if (!await userManager.IsInRoleAsync(testAdmin, "Admin"))
+    {
+        await userManager.AddToRoleAsync(testAdmin, "Admin");
+    }
+}
+
+async Task LogTestUserToken(string email)
+{
+    using var scope = app.Services.CreateScope();
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<EntUser>>();
+    var testUser = await userManager.FindByEmailAsync(email);
 
     if (testUser is not null)
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         var authenticationService = scope.ServiceProvider.GetRequiredService<AuthenticationService>();
-        logger.LogInformation("Token: {token}", await authenticationService.GetTokenAsync(testUser));
+        logger.LogInformation("User: {user}, Token: {token}", testUser.UserName, await authenticationService.GetTokenAsync(testUser));
     }
 }
 
@@ -130,6 +188,7 @@ namespace Server
 
             builder.Services
                 .AddGraphQLServer()
+                .AddGlobalObjectIdentification()
                 .AddAuthorization(options =>
                 {
                     options.AddPolicy("AdminOrCanViewOwnData", policy =>
