@@ -2,16 +2,23 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Server.Entities;
 
 namespace Server.Services;
 
-public class AuthenticationService(IConfiguration config, UserManager<EntUser> userManager)
+public class JwtOptions
+{
+    required public string ValidIssuer { get; set; }
+    required public string ValidAudience { get; set; }
+    required public string PrivateKey { get; set; }
+}
+
+public class AuthenticationService(IOptions<JwtOptions> jwtOptions, UserManager<EntUser> userManager)
 {
     public async IAsyncEnumerable<Claim> GetClaims(EntUser user)
-    {
-        yield return new (JwtRegisteredClaimNames.Sub, user.Id);
+        { 
         yield return new (JwtRegisteredClaimNames.UniqueName, user.Id);
         yield return new (JwtRegisteredClaimNames.NameId, user.Id);
         yield return new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString());
@@ -28,9 +35,14 @@ public class AuthenticationService(IConfiguration config, UserManager<EntUser> u
         }
     }
 
-    private readonly SigningCredentials _signingCredentials
-        = new(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtPrivateKey"]!)), SecurityAlgorithms.HmacSha256);
+    public static SymmetricSecurityKey GetSecurityKey(JwtOptions jwtOptions)
+        => new(Encoding.UTF8.GetBytes(jwtOptions.PrivateKey));
+    
 
+    public static SigningCredentials GetSigningCredentials(JwtOptions jwtOptions)
+        => new(GetSecurityKey(jwtOptions), SecurityAlgorithms.HmacSha256);
+    
+    private readonly SigningCredentials _signingCredentials = GetSigningCredentials(jwtOptions.Value);
     public async Task<string> GetTokenAsync(EntUser user)
     {
         var claims = await GetClaims(user).ToListAsync();
