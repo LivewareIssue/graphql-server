@@ -16,11 +16,8 @@ public class User
 
     public IEnumerable<string> Roles { get; set; } = [];
 
-    public static async Task<User> GetAsync(string id, [Service] UserManager<EntUser> userManager)
+    public static async Task<User> FromEntUserAsync(EntUser user, UserManager<EntUser> userManager)
     {
-        var user = await userManager.FindByIdAsync(id)
-            ?? throw new Exception("Failed to find user.");
-
         return new User
         {
             Id = user.Id,
@@ -28,5 +25,13 @@ public class User
             Email = user.Email,
             Roles = await userManager.GetRolesAsync(user)
         };
+    }
+
+    public static async Task<User> GetAsync(string id, [Service] UserManager<EntUser> userManager)
+    {
+        var user = await userManager.FindByIdAsync(id)
+            ?? throw new Exception("Failed to find user.");
+
+        return await FromEntUserAsync(user, userManager);
     }
 }

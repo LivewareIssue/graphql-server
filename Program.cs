@@ -199,7 +199,8 @@ namespace Server
                         });
                     });
                 })
-                .AddQueryType<Query>();
+                .AddQueryType<Query>()
+                .AddMutationType<Mutation>();
             
             return builder;
         }
