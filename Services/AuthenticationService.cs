@@ -15,7 +15,7 @@ public class JwtOptions
     required public string PrivateKey { get; set; }
 }
 
-public class AuthenticationService(IOptions<JwtOptions> jwtOptions, UserManager<EntUser> userManager)
+public class AuthenticationService(ILogger<AuthenticationService> logger, IOptions<JwtOptions> jwtOptions, UserManager<EntUser> userManager)
 {
     public async IAsyncEnumerable<Claim> GetClaims(EntUser user)
         { 
@@ -48,8 +48,8 @@ public class AuthenticationService(IOptions<JwtOptions> jwtOptions, UserManager<
         var claims = await GetClaims(user).ToListAsync();
 
         var token = new JwtSecurityToken(
-            issuer: "issuer",
-            audience: "audience",
+            issuer: jwtOptions.Value.ValidIssuer,
+            audience: jwtOptions.Value.ValidAudience,
             claims: claims,
             expires: DateTime.UtcNow.AddHours(4),
             signingCredentials: _signingCredentials);

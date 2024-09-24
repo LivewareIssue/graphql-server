@@ -75,8 +75,8 @@ namespace Server
                     options.TokenValidationParameters =
                         new TokenValidationParameters
                         {
-                            ValidIssuer = "issuer",
-                            ValidAudience = "audience",
+                            ValidIssuer = jwtOptions.ValidIssuer,
+                            ValidAudience = jwtOptions.ValidAudience,
                             ValidateIssuerSigningKey = true,
                             IssuerSigningKey = AuthenticationService.GetSecurityKey(jwtOptions),
                         };
