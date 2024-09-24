@@ -28,26 +28,20 @@ public class AuthenticationService(IConfiguration config, UserManager<EntUser> u
         }
     }
 
+    private readonly SigningCredentials _signingCredentials
+        = new(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtPrivateKey"]!)), SecurityAlgorithms.HmacSha256);
+
     public async Task<string> GetTokenAsync(EntUser user)
     {
         var claims = await GetClaims(user).ToListAsync();
-
-        var jwtPrivateKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(
-                config["JwtPrivateKey"]!
-            ));
-
-        var signingCredentials = new SigningCredentials(jwtPrivateKey, SecurityAlgorithms.HmacSha256);
-
-        var tokenHandler = new JwtSecurityTokenHandler();
 
         var token = new JwtSecurityToken(
             issuer: "issuer",
             audience: "audience",
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(1),
-            signingCredentials: signingCredentials);
+            expires: DateTime.UtcNow.AddHours(4),
+            signingCredentials: _signingCredentials);
     
-        return tokenHandler.WriteToken(token);
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
