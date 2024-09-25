@@ -5,8 +5,12 @@ using Server.Entities;
 
 namespace Server.GraphQL;
 
-public class Query
+public record ViewerContext(EntUser User);
+
+public class Query(ViewerContext? viewerContext)
 {
+    public Query() : this(default) { }
+
     [Authorize(Roles = ["Admin"])]
     [GraphQLDescription("Lookup a user by their ID.")]
     public async ValueTask<User> User([ID] string id, UserManager<EntUser> userManager)
@@ -16,7 +20,7 @@ public class Query
     [GraphQLDescription("The currently authenticated user.")]
     public async Task<User?> Viewer(UserManager<EntUser> userManager, ClaimsPrincipal claimsPrincipal)
     {
-        var user = await userManager.GetUserAsync(claimsPrincipal);
+        var user = viewerContext?.User ?? await userManager.GetUserAsync(claimsPrincipal);
         if (user == null)
         {
             return null;

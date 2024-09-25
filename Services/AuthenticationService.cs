@@ -14,6 +14,7 @@ public class JwtOptions
     required public string ValidIssuer { get; set; }
     required public string ValidAudience { get; set; }
     required public string PrivateKey { get; set; }
+    required public int LifetimeSeconds { get; set; }
 }
 
 public class AuthenticationService(IOptions<JwtOptions> jwtOptions, UserManager<EntUser> userManager)

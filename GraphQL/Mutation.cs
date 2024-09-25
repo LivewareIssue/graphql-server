@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using HotChocolate.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Server.Entities;
 using Server.Services;
@@ -7,16 +9,23 @@ namespace Server.GraphQL;
 public class Mutation
 {
     [GraphQLDescription("Sign in using an email and password.")]
+    [AllowAnonymous]
     public async Task<SignInResult> SignInAsync(
         [GraphQLDescription("The user's email address.")]
         string email,
         [GraphQLDescription("The user's password.")]
         string password,
         [Service]
+        ILogger<Mutation> logger,
+        [Service]
         AuthenticationService authenticationService,
         [Service]
-        UserManager<EntUser> userManager)
+        UserManager<EntUser> userManager,
+        [Service]
+        IHttpContextAccessor contextAccessor)
     {
+        logger.LogInformation("Signing in user with email {email} and password {password}", email, password);        
+
         var user = await userManager.FindByEmailAsync(email)
             ?? throw new Exception("Failed to find user.");
         
@@ -29,8 +38,8 @@ public class Mutation
 
         return new SignInResult
         {
-            Viewer = await User.FromEntUserAsync(user, userManager),
-            Token = token
+            Token = token,
+            Query = new Query(new ViewerContext(user))
         };
     }
 }

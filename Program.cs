@@ -184,11 +184,12 @@ namespace Server
                                 .WithOrigins("http://localhost:8080");
                         });
                     }
-                );
+                ).AddHttpContextAccessor();
 
             builder.Services
                 .AddGraphQLServer()
                 .AddGlobalObjectIdentification()
+                .AddQueryFieldToMutationPayloads()
                 .AddAuthorization(options =>
                 {
                     options.AddPolicy("AdminOrCanViewOwnData", policy =>
