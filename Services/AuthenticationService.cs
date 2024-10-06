@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Server.Entities;
-using Server.GraphQL;
 
 namespace Server.Services;
 
@@ -20,7 +19,7 @@ public class JwtOptions
 public class AuthenticationService(IOptions<JwtOptions> jwtOptions, UserManager<EntUser> userManager)
 {
     public async IAsyncEnumerable<Claim> GetClaims(EntUser user)
-        { 
+    {
         yield return new (JwtRegisteredClaimNames.UniqueName, user.Id);
         yield return new (JwtRegisteredClaimNames.NameId, user.Id);
         yield return new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString());
@@ -39,12 +38,12 @@ public class AuthenticationService(IOptions<JwtOptions> jwtOptions, UserManager<
 
     public static SymmetricSecurityKey GetSecurityKey(JwtOptions jwtOptions)
         => new(Encoding.UTF8.GetBytes(jwtOptions.PrivateKey));
-    
 
     public static SigningCredentials GetSigningCredentials(JwtOptions jwtOptions)
         => new(GetSecurityKey(jwtOptions), SecurityAlgorithms.HmacSha256);
     
     private readonly SigningCredentials _signingCredentials = GetSigningCredentials(jwtOptions.Value);
+    
     public async Task<string> GetTokenAsync(EntUser user)
     {
         var claims = await GetClaims(user).ToListAsync();

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using HotChocolate.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Server.Entities;
+using Server.Services;
 
 namespace Server.GraphQL;
 
@@ -11,21 +12,38 @@ public class Query(ViewerContext? viewerContext)
 {
     public Query() : this(default) { }
 
-    [Authorize(Roles = ["Admin"])]
-    [GraphQLDescription("Lookup a user by their ID.")]
-    public async ValueTask<User> User([ID] string id, UserManager<EntUser> userManager)
-        => await GraphQL.User.GetAsync(id, userManager);
-
     [AllowAnonymous]
     [GraphQLDescription("The currently authenticated user.")]
-    public async Task<User?> Viewer(UserManager<EntUser> userManager, ClaimsPrincipal claimsPrincipal)
-    {
-        var user = viewerContext?.User ?? await userManager.GetUserAsync(claimsPrincipal);
-        if (user == null)
-        {
-            return null;
-        }
+    public async Task<EntUser?> Viewer(UserManager<EntUser> userManager, ClaimsPrincipal claimsPrincipal)
+        => viewerContext?.User ?? await userManager.GetUserAsync(claimsPrincipal);
 
-        return await GraphQL.User.FromEntUserAsync(user, userManager);
-    }
+    [Authorize(Roles = ["Admin", "Employee"])]
+    [GraphQLDescription("Lookup a task by it's ID.")]
+    public async ValueTask<EntTask?> EntTask([ID] int id, [Service] TaskService taskService)
+        => await taskService.FindByIdAsync(id);
+    
+    [Authorize(Roles = ["Admin", "Employee"])]
+    [GraphQLDescription("Lookup a user by their ID.")]
+    public async ValueTask<EntUser?> EntUser([ID] string id, [Service] UserManager<EntUser> userManager)
+        => await userManager.FindByIdAsync(id);
+
+    [Authorize(Roles = ["Admin", "Employee"])]
+    [GraphQLDescription("Lookup a comment by it's ID.")]
+    public async ValueTask<EntComment?> EntComment([ID] int id, [Service] CommentService commentService)
+        => await commentService.FindByIdAsync(id);
+
+    [Authorize(Roles = ["Admin", "Employee"])]
+    [GraphQLDescription("List all tasks.")]
+    public IQueryable<EntTask> Tasks([Service] TaskService taskService)
+        => taskService.QueryAll();
+
+    [Authorize(Roles = ["Admin", "Employee"])]
+    [GraphQLDescription("List all users.")]
+    public IQueryable<EntUser> Users([Service] UserManager<EntUser> userManager)
+        => userManager.Users;
+    
+    [Authorize(Roles = ["Admin", "Employee"])]
+    [GraphQLDescription("List all comments.")]
+    public IQueryable<EntComment> Comments([Service] CommentService commentService)
+        => commentService.QueryAll();
 }

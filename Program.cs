@@ -15,7 +15,18 @@ var builder = WebApplication
     .AddDatabase()
     .AddServer();
 
+builder.Services.AddScoped<TaskService>();
+builder.Services.AddScoped<CommentService>();
+
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSimulatedLatency(
+        min: TimeSpan.FromMilliseconds(500),
+        max: TimeSpan.FromMilliseconds(1500)
+    );
+}
 
 app
     .UseHttpsRedirection()
@@ -28,8 +39,6 @@ app.MapGraphQL();
 
 await ApplyMigrations();
 await SeedDatabase();
-await LogTestUserToken("testuser@example.com");
-await LogTestUserToken("admin@example.com");
 await app.RunAsync();
 
 async Task SeedDatabase()
@@ -47,7 +56,7 @@ async Task SeedDatabase()
             UserName = "TestUser",
             Email = "testuser@example.com"
         };
-
+        
         var result = await userManager.CreateAsync(testUser, "Password123!");
     }
 
@@ -86,20 +95,37 @@ async Task SeedDatabase()
     {
         await userManager.AddToRoleAsync(testAdmin, "Admin");
     }
-}
 
-async Task LogTestUserToken(string email)
-{
-    using var scope = app.Services.CreateScope();
-
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<EntUser>>();
-    var testUser = await userManager.FindByEmailAsync(email);
-
-    if (testUser is not null)
+    var commentService = scope.ServiceProvider.GetRequiredService<CommentService>();
+    var comment = await commentService.QueryAll().SingleOrDefaultAsync();
+    if (comment is null)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        var authenticationService = scope.ServiceProvider.GetRequiredService<AuthenticationService>();
-        logger.LogInformation("User: {user}, Token: {token}", testUser.UserName, await authenticationService.GetTokenAsync(testUser));
+        comment = new EntComment
+        {
+            Content = "Comment 1",
+            AuthorId = testUser.Id,
+            Author = testUser,
+        };
+
+        comment = await commentService.CreateAsync(comment);
+    }
+
+    var taskService = scope.ServiceProvider.GetRequiredService<TaskService>();
+    var task = await taskService.FindByTitleAsync("Task 1");
+    if (task is null)
+    {
+        task = new EntTask
+        {
+            Title = "Task 1",
+            Content = "Description 1",
+            Status = Server.Entities.TaskStatus.Open,
+            Size = TaskSize.M,
+            Priority = TaskPriority.High,
+            OwnerId = testUser.Id,
+            Comments = [comment]
+        };
+
+        task = await taskService.CreateAsync(task);
     }
 }
 
@@ -107,7 +133,7 @@ async Task ApplyMigrations()
 {
     using var scope = app.Services.CreateScope();
 
-    using var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
 }
 
@@ -161,12 +187,10 @@ namespace Server
                 Password = builder.Configuration["DatabasePassword"]
             };
 
-            builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(
-                options => options.UseSqlServer(connectionStringBuilder.ConnectionString));
-                
-            builder.Services.AddScoped(serviceProvider
-                => serviceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContext());
-            
+            builder.Services.AddDbContextPool<ApplicationDbContext>(
+                options => options.UseSqlServer(connectionStringBuilder.ConnectionString)
+            );
+
             return builder;
         }
 
@@ -200,10 +224,51 @@ namespace Server
                         });
                     });
                 })
+                .AddTypeExtension<EntUserTypeExtension>()
                 .AddQueryType<Query>()
                 .AddMutationType<Mutation>();
             
             return builder;
+        }
+
+        public static IApplicationBuilder UseSimulatedLatency(
+            this IApplicationBuilder app,
+            TimeSpan min,
+            TimeSpan max
+        )
+        {
+            return app.UseMiddleware(
+                typeof(SimulatedLatencyMiddleware),
+                min,
+                max
+            );
+        }
+    }
+
+    public class SimulatedLatencyMiddleware(
+        RequestDelegate next,
+        TimeSpan min,
+        TimeSpan max
+        )
+    {
+        private readonly RequestDelegate _next = next;
+        private readonly int _minDelayInMs = (int)min.TotalMilliseconds;
+        private readonly int _maxDelayInMs = (int)max.TotalMilliseconds;
+        private readonly ThreadLocal<Random> _random = new (() => new Random());
+
+        public async Task Invoke(HttpContext context)
+        {
+            var delay = _random.Value?.Next(
+                _minDelayInMs,
+                _maxDelayInMs
+            );
+
+            if (delay is not null)
+            {
+                await Task.Delay((int)delay);
+            }
+
+            await _next(context);
         }
     }
 }
