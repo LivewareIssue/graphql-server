@@ -50,9 +50,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithMany(user => user.Tasks)
             .HasForeignKey(task => task.OwnerId);
 
+        modelBuilder.Entity<EntTask>()
+            .HasMany(task => task.Comments);
+
         modelBuilder.Entity<EntComment>()
             .HasOne(comment => comment.Author)
-            .WithMany()
+            .WithMany(user => user.Comments)
             .HasForeignKey(comment => comment.AuthorId);
 
         modelBuilder.Entity<EntTask>()

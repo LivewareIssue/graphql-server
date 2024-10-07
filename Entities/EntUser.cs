@@ -1,3 +1,4 @@
+using EntityFrameworkCore.Projectables;
 using Microsoft.AspNetCore.Identity;
 using Server.Services;
 
@@ -6,21 +7,14 @@ namespace Server.Entities;
 [Node]
 public class EntUser : IdentityUser
 {
-    [GraphQLIgnore]
+    [GraphQLDescription("The tasks assigned to this user.")]
     public List<EntTask> Tasks { get; set; } = [];
 
-    [GraphQLDescription("The tasks assigned to this user.")]
-    [GraphQLName("tasks")]
-    public IQueryable<EntTask> QueryTasks([Service] TaskService taskService)
-        => taskService.QueryByOwnerId(Id);
-
-    [GraphQLDescription("This user's comments.")]
-    [GraphQLName("comments")]
-    public IQueryable<EntComment> QueryComments([Service] CommentService commentService)
-        => commentService.QueryByAuthorId(Id);
+    [GraphQLDescription("The comments made by this user.")]
+    public List<EntComment> Comments { get; set; } = [];
 
     [GraphQLDescription("This roles assigned to this user.")]
-    public async Task<IList<string>> GetRolesAsync([Service] UserManager<EntUser> userManager)
+    public async Task<IList<string>> GetRolesAsync(UserManager<EntUser> userManager)
         => await userManager.GetRolesAsync(this);
 }
 

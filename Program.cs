@@ -135,6 +135,18 @@ async Task ApplyMigrations()
 
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
+
+    var tableNames = dbContext
+        .Model
+        .GetEntityTypes()
+        .Select(entityType => entityType.GetTableName())
+        .Distinct()
+        .ToList();
+    
+    foreach (var tableName in tableNames)
+    {
+        dbContext.Database.ExecuteSqlRaw($"DELETE FROM [{tableName}]");
+    }
 }
 
 namespace Server
@@ -188,7 +200,9 @@ namespace Server
             };
 
             builder.Services.AddDbContextPool<ApplicationDbContext>(
-                options => options.UseSqlServer(connectionStringBuilder.ConnectionString)
+                options => options
+                    .UseSqlServer(connectionStringBuilder.ConnectionString)
+                    .UseProjectables()
             );
 
             return builder;
@@ -225,6 +239,7 @@ namespace Server
                     });
                 })
                 .AddTypeExtension<EntUserTypeExtension>()
+                .AddProjections()
                 .AddQueryType<Query>()
                 .AddMutationType<Mutation>();
             

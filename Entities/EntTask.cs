@@ -1,3 +1,5 @@
+using EntityFrameworkCore.Projectables;
+using Microsoft.AspNetCore.Identity;
 using Server.Services;
 
 namespace Server.Entities;
@@ -42,16 +44,16 @@ public class EntTask : IAuditedEntity
     [GraphQLDescription("The date and time when this task was last updated.")]
     public DateTime UpdatedAt { get; set; }
 
-    [GraphQLIgnore]
+    [GraphQLDescription("The unique identifier of the user that this task is currently assigned to.")]
     public string? OwnerId { get; set; }
 
-    [GraphQLIgnore]
+    [GraphQLDescription("The user that this task is currently assigned to.")]
     public EntUser? Owner { get; set; }
 
-    [GraphQLIgnore]
+    [GraphQLDescription("The comments made on this task.")]
     public List<EntComment> Comments { get; set; } = [];
 
-    [GraphQLIgnore]
+    [GraphQLDescription("The tasks that this task depends on.")]
     public List<EntTask> DependsOn { get; set; } = [];
 
     public static async Task<EntTask?> GetAsync(int id, [Service] TaskService taskService)

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using HotChocolate.Authorization;
+using HotChocolate.Data;
 using Microsoft.AspNetCore.Identity;
 using Server.Entities;
 using Server.Services;
@@ -14,36 +15,37 @@ public class Query(ViewerContext? viewerContext)
 
     [AllowAnonymous]
     [GraphQLDescription("The currently authenticated user.")]
-    public async Task<EntUser?> Viewer(UserManager<EntUser> userManager, ClaimsPrincipal claimsPrincipal)
-        => viewerContext?.User ?? await userManager.GetUserAsync(claimsPrincipal);
+    [UseProjection]
+    [UseFirstOrDefault]
+    public IQueryable<EntUser> Viewer(UserManager<EntUser> userManager, ClaimsPrincipal claimsPrincipal)
+    {
+        var user = viewerContext?.User;
+        if (user is not null)
+        {
+            return new[] { user }.AsQueryable();
+        }
 
-    [Authorize(Roles = ["Admin", "Employee"])]
-    [GraphQLDescription("Lookup a task by it's ID.")]
-    public async ValueTask<EntTask?> EntTask([ID] int id, [Service] TaskService taskService)
-        => await taskService.FindByIdAsync(id);
-    
-    [Authorize(Roles = ["Admin", "Employee"])]
-    [GraphQLDescription("Lookup a user by their ID.")]
-    public async ValueTask<EntUser?> EntUser([ID] string id, [Service] UserManager<EntUser> userManager)
-        => await userManager.FindByIdAsync(id);
+        var userId = userManager.GetUserId(claimsPrincipal);
+        if (userId is not null)
+        {
+            return userManager.Users.Where(user => user.Id == userId);
+        }
 
-    [Authorize(Roles = ["Admin", "Employee"])]
-    [GraphQLDescription("Lookup a comment by it's ID.")]
-    public async ValueTask<EntComment?> EntComment([ID] int id, [Service] CommentService commentService)
-        => await commentService.FindByIdAsync(id);
+        return Enumerable.Empty<EntUser>().AsQueryable();
+    }
 
-    [Authorize(Roles = ["Admin", "Employee"])]
     [GraphQLDescription("List all tasks.")]
+    [UseProjection]
     public IQueryable<EntTask> Tasks([Service] TaskService taskService)
         => taskService.QueryAll();
 
-    [Authorize(Roles = ["Admin", "Employee"])]
     [GraphQLDescription("List all users.")]
+    [UseProjection]
     public IQueryable<EntUser> Users([Service] UserManager<EntUser> userManager)
         => userManager.Users;
     
-    [Authorize(Roles = ["Admin", "Employee"])]
     [GraphQLDescription("List all comments.")]
+    [UseProjection]
     public IQueryable<EntComment> Comments([Service] CommentService commentService)
         => commentService.QueryAll();
 }

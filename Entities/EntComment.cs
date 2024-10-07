@@ -18,10 +18,10 @@ public class EntComment : IAuditedEntity
     [GraphQLDescription("The date and time when this comment was last updated.")]
     public DateTime UpdatedAt { get; set; }
 
-    [GraphQLIgnore]
+    [GraphQLDescription("The unique identifier of the user that made this comment.")]
     required public string AuthorId { get; set; }
 
-    [GraphQLIgnore]
+    [GraphQLDescription("The user that made this comment.")]
     required public EntUser Author { get; set; }
 
     public static async Task<EntComment?> GetAsync(int id, [Service] CommentService commentService)
