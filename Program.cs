@@ -1,3 +1,7 @@
+using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
@@ -218,14 +222,22 @@ namespace Server
                         {
                             builder
                                 .AllowAnyHeader()
-                                .WithMethods("GET", "POST")
-                                .WithOrigins("http://localhost:8080");
+                                .AllowAnyMethod()
+                                .AllowAnyOrigin();
                         });
                     }
                 ).AddHttpContextAccessor();
 
             builder.Services
                 .AddGraphQLServer()
+                .ModifyOptions(options =>
+                {
+                    options.EnableDefer = true;
+                })
+                .ModifyRequestOptions(options =>
+                {
+                    options.IncludeExceptionDetails = true;
+                })
                 .AddGlobalObjectIdentification()
                 // .RegisterDbContextFactory<ApplicationDbContext>()
                 .AddQueryFieldToMutationPayloads()
@@ -253,36 +265,57 @@ namespace Server
             TimeSpan max
         )
         {
-            return app.UseMiddleware(
-                typeof(SimulatedLatencyMiddleware),
-                min,
-                max
-            );
+            return app.UseMiddleware(typeof(SimulatedLatencyMiddleware));
         }
     }
 
-    public class SimulatedLatencyMiddleware(
-        RequestDelegate next,
-        TimeSpan min,
-        TimeSpan max
-        )
+    public class SimulatedLatencyMiddleware(RequestDelegate next)
     {
         private readonly RequestDelegate _next = next;
-        private readonly int _minDelayInMs = (int)min.TotalMilliseconds;
-        private readonly int _maxDelayInMs = (int)max.TotalMilliseconds;
         private readonly ThreadLocal<Random> _random = new (() => new Random());
 
         public async Task Invoke(HttpContext context)
         {
-            var delay = _random.Value?.Next(
-                _minDelayInMs,
-                _maxDelayInMs
-            );
+            context.Request.EnableBuffering();
 
-            if (delay is not null)
+            using var reader = new StreamReader(context.Request.Body);
+            var body = await reader.ReadToEndAsync();
+            if (!string.IsNullOrWhiteSpace(body))
             {
-                await Task.Delay((int)delay);
+                var json = JsonSerializer.Deserialize<JsonObject>(body);
+                if (json?.TryGetPropertyValue("operationName", out var operationName) ?? false)
+                {
+                    if (operationName is not null)
+                    {
+                        if (operationName.GetValue<string>() != "SideNavQuery")
+                        {
+                            var delay = _random.Value?.Next(
+                                800,
+                                1400
+                            );
+
+                            if (delay is not null)
+                            {
+                                await Task.Delay((int)delay);
+                            }
+                        }
+                        else
+                        {
+                            var delay = _random.Value?.Next(
+                                200,
+                                400
+                            );
+
+                            if (delay is not null)
+                            {
+                                await Task.Delay((int)delay);
+                            }
+                        }
+                    }
+                }
             }
+
+            context.Request.Body.Position = 0;            
 
             await _next(context);
         }
