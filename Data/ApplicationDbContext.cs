@@ -18,6 +18,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .Where(p => p.State == EntityState.Modified)
             .Select(p => p.Entity);
 
+        throw new Exception("Test");
+
         var now = DateTime.UtcNow;
 
         foreach (var added in addedAuditedEntities) {
@@ -45,10 +47,17 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 task.CreatedAt
             });
 
-        modelBuilder.Entity<EntTask>()
-            .HasOne(task => task.Owner)
-            .WithMany(user => user.Tasks)
+
+        // modelBuilder.Entity<EntTask>()
+        //     .HasOne(task => task.Owner)
+        //     .WithMany(user => user.Tasks)
+        //     .HasForeignKey(task => task.OwnerId);
+
+        modelBuilder.Entity<EntUser>()
+            .HasMany(user => user.Tasks)
+            .WithOne(task => task.Owner)
             .HasForeignKey(task => task.OwnerId);
+
 
         modelBuilder.Entity<EntTask>()
             .HasMany(task => task.Comments);
@@ -57,6 +66,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasOne(comment => comment.Author)
             .WithMany(user => user.Comments)
             .HasForeignKey(comment => comment.AuthorId);
+
 
         modelBuilder.Entity<EntTask>()
             .HasMany(task => task.DependsOn)

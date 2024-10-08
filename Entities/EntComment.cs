@@ -23,9 +23,4 @@ public class EntComment : IAuditedEntity
 
     [GraphQLDescription("The user that made this comment.")]
     required public EntUser Author { get; set; }
-
-    public static async Task<EntComment?> GetAsync(int id, [Service] CommentService commentService)
-    {
-        return await commentService.FindByIdAsync(id);
-    }
 }

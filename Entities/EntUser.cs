@@ -1,6 +1,4 @@
-using EntityFrameworkCore.Projectables;
 using Microsoft.AspNetCore.Identity;
-using Server.Services;
 
 namespace Server.Entities;
 
@@ -24,7 +22,7 @@ public class EntUserTypeExtension : ObjectTypeExtension<EntUser>
     {
         descriptor
             .Field(user => user.Id)
-            .ID(nameof(EntUser.Id))
+            .ID()
             .Description("This user's unique identifier.");
 
         descriptor

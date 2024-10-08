@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using HotChocolate.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Server.Entities;
 using Server.Services;
 
@@ -24,8 +25,6 @@ public class Mutation
         [Service]
         IHttpContextAccessor contextAccessor)
     {
-        logger.LogInformation("Signing in user with email {email} and password {password}", email, password);        
-
         var user = await userManager.FindByEmailAsync(email)
             ?? throw new Exception("Failed to find user.");
         
@@ -39,7 +38,7 @@ public class Mutation
         return new SignInResult
         {
             Token = token,
-            Query = new Query(new ViewerContext(user))
+            Query = new Query(new ViewerContext(user.Id))
         };
     }
 }

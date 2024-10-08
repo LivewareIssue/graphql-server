@@ -55,9 +55,4 @@ public class EntTask : IAuditedEntity
 
     [GraphQLDescription("The tasks that this task depends on.")]
     public List<EntTask> DependsOn { get; set; } = [];
-
-    public static async Task<EntTask?> GetAsync(int id, [Service] TaskService taskService)
-    {
-        return await taskService.FindByIdAsync(id);
-    }
 }
