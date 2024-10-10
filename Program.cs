@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -115,21 +113,75 @@ async Task SeedDatabase()
     }
 
     var taskService = scope.ServiceProvider.GetRequiredService<TaskService>();
-    var task = await taskService.FindByTitleAsync("Task 1");
-    if (task is null)
+
+    var statuses = Enum.GetValues<Server.Entities.TaskStatus>();
+    var sizes = Enum.GetValues<TaskSize>();
+    var priorities = Enum.GetValues<TaskPriority>();
+
+    var random = new Random();
+
+    TaskSize getRandomSize()
     {
-        task = new EntTask
+        return sizes[random.Next(0, sizes.Length)];
+    }
+
+    TaskPriority getRandomPriority()
+    {
+        return priorities[random.Next(0, priorities.Length)];
+    }
+
+    Server.Entities.TaskStatus getRandomStatus()
+    {
+        return statuses[random.Next(0, statuses.Length)];
+    }
+
+    var templates = new List<string>
+    {
+        "Merge {0} into {1}",
+        "Add {0} functionality to {1}",
+        "Fix bug in {0}",
+        "Refactor {0} module for {1}",
+        "Implement {0} for {1} integration",
+        "Optimize {0} performance in {1}",
+        "Remove deprecated {0} in {1}",
+        "Update {0} configuration for {1}"
+    };
+
+    var techWords = new List<string>
+    {
+        "API", "Service", "Component", "Module", "Functionality", "Pipeline", 
+        "Cache", "Session", "Handler", "Widget", "Adapter", "Manager", "Resolver",
+        "Controller", "Client", "Repository"
+    };
+
+    string getRandomTaskTitle()
+    {
+        string template = templates[random.Next(templates.Count)];
+        string x = techWords[random.Next(techWords.Count)];
+        string y = techWords[random.Next(techWords.Count)];
+        return string.Format(template, x, y);
+    }
+
+    var owners = new List<EntUser> { testUser, testAdmin };
+
+    EntUser getRandomOwner()
+    {
+        return owners[random.Next(owners.Count)];
+    }
+
+    for (var i = 0; i < 100; i++)
+    {
+        var task = new EntTask
         {
-            Title = "Task 1",
-            Content = "Description 1",
-            Status = Server.Entities.TaskStatus.Open,
-            Size = TaskSize.M,
-            Priority = TaskPriority.High,
-            OwnerId = testUser.Id,
-            Comments = [comment]
+            Title = getRandomTaskTitle(),
+            Content = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+            Status = getRandomStatus(),
+            Size = getRandomSize(),
+            Priority = getRandomPriority(),
+            Owner = getRandomOwner()
         };
 
-        task = await taskService.CreateAsync(task);
+        await taskService.CreateAsync(task);
     }
 }
 
@@ -140,17 +192,17 @@ async Task ApplyMigrations()
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
 
-    // var tableNames = dbContext
-    //     .Model
-    //     .GetEntityTypes()
-    //     .Select(entityType => entityType.GetTableName())
-    //     .Distinct()
-    //     .ToList();
+    var tableNames = dbContext
+        .Model
+        .GetEntityTypes()
+        .Select(entityType => entityType.GetTableName())
+        .Distinct()
+        .ToList();
     
-    // foreach (var tableName in tableNames)
-    // {
-    //     dbContext.Database.ExecuteSqlRaw($"DELETE FROM [{tableName}]");
-    // }
+    foreach (var tableName in tableNames)
+    {
+        dbContext.Database.ExecuteSqlRaw($"DELETE FROM [{tableName}]");
+    }
 }
 
 namespace Server

@@ -12,9 +12,9 @@ public enum TaskStatus
     Closed
 }
 
-public enum TaskSize { XS, S, M, L, XL}
+public enum TaskSize { S, M, L, XL}
 
-public enum TaskPriority { Low, Medium, High }
+public enum TaskPriority { Low, Medium, High, Critical }
 
 [Node]
 public class EntTask : IAuditedEntity
