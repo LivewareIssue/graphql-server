@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using OpenAI.Chat;
 using Server;
 using Server.Data;
 using Server.Entities;
@@ -39,8 +40,8 @@ app
 
 app.MapGraphQL();
 
-await ApplyMigrations();
-await SeedDatabase();
+// await ApplyMigrations();
+// await SeedDatabase();
 await app.RunAsync();
 
 async Task SeedDatabase()
@@ -135,32 +136,57 @@ async Task SeedDatabase()
         return statuses[random.Next(0, statuses.Length)];
     }
 
-    var templates = new List<string>
+    ChatClient client = new(model: "gpt-4o-mini-2024-07-18", apiKey: app.Configuration["OpenAI:ApiKey"]);
+
+    List<ChatMessage> messages =
+    [
+        new UserChatMessage("Write a plausible software-engineering task including a title and 1-2 paragraph description."),
+    ];
+
+    ChatCompletionOptions options = new()
     {
-        "Merge {0} into {1}",
-        "Add {0} functionality to {1}",
-        "Fix bug in {0}",
-        "Refactor {0} module for {1}",
-        "Implement {0} for {1} integration",
-        "Optimize {0} performance in {1}",
-        "Remove deprecated {0} in {1}",
-        "Update {0} configuration for {1}"
+        ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
+            jsonSchemaFormatName: "issue",
+            jsonSchema: BinaryData.FromBytes("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string" },
+                        "content": { "type": "string" }
+                    },
+                    "required": ["title", "content"],
+                    "additionalProperties": false
+                }
+                """u8.ToArray()),
+            jsonSchemaIsStrict: true)
     };
 
-    var techWords = new List<string>
-    {
-        "API", "Service", "Component", "Module", "Functionality", "Pipeline", 
-        "Cache", "Session", "Handler", "Widget", "Adapter", "Manager", "Resolver",
-        "Controller", "Client", "Repository"
-    };
+    // var templates = new List<string>
+    // {
+    //     "Merge {0} into {1}",
+    //     "Add {0} functionality to {1}",
+    //     "Fix bug in {0}",
+    //     "Refactor {0} module for {1}",
+    //     "Implement {0} for {1} integration",
+    //     "Optimize {0} performance in {1}",
+    //     "Remove deprecated {0} in {1}",
+    //     "Update {0} configuration for {1}"
+    // };
 
-    string getRandomTaskTitle()
-    {
-        string template = templates[random.Next(templates.Count)];
-        string x = techWords[random.Next(techWords.Count)];
-        string y = techWords[random.Next(techWords.Count)];
-        return string.Format(template, x, y);
-    }
+    // var techWords = new List<string>
+    // {
+    //     "API", "Service", "Component", "Module", "Functionality", "Pipeline", 
+    //     "Cache", "Session", "Handler", "Widget", "Adapter", "Manager", "Resolver",
+    //     "Controller", "Client", "Repository"
+    // };
+
+    // string getRandomTaskTitle()
+    // {
+    //     string template = templates[random.Next(templates.Count)];
+    //     string x = techWords[random.Next(techWords.Count)];
+    //     string y = techWords[random.Next(techWords.Count)];
+    //     return string.Format(template, x, y);
+    // }
 
     var owners = new List<EntUser> { testUser, testAdmin };
 
@@ -171,10 +197,14 @@ async Task SeedDatabase()
 
     for (var i = 0; i < 100; i++)
     {
+        ChatCompletion completion = await client.CompleteChatAsync(messages, options);
+
+        using var structuredJson = JsonDocument.Parse(completion.Content[0].Text);
+        var root = structuredJson.RootElement;
         var task = new EntTask
         {
-            Title = getRandomTaskTitle(),
-            Content = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+            Title = root.GetProperty("title").GetString()!,
+            Content = root.GetProperty("content").GetString()!,
             Status = getRandomStatus(),
             Size = getRandomSize(),
             Priority = getRandomPriority(),
